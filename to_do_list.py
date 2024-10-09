@@ -1,3 +1,5 @@
+from typing import Optional
+
 from bson import ObjectId
 from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,11 +16,11 @@ collection = db['list_1']
 
 class Task(BaseModel):
     # the id will be created separately
-    priority: str  # urgent, important or unimportant
-    description: str
-    expiration_date: date
-    status: int     # -1 for no difference, 0 for doing it, 1 for completed. TODO - make a boolean for finished?
-    remind: bool
+    name: str
+    priority: Optional[str]  # urgent, important or unimportant
+    expiration_date: Optional[date]
+    finished: Optional[bool]
+    remind: Optional[bool]
 
 def bson_to_dict(task):
     task["_id"] = int(task["_id"])
@@ -28,7 +30,6 @@ def bson_to_dict(task):
 @app.post("/tasks/", response_model=dict)
 async def create_task(task: Task):
 
-#TODO !!!!
 @app.put("", response_model=dict)
 async def update_expiration_date(task: Task):
 
