@@ -1,0 +1,7 @@
+_id,name,priority,expiration_date,remind,finished
+<md5 _hashlib.HASH object @ 0x0000021F19886E30>,blaaaa,important,2024-10-10T07:31:23.619Z,false,false
+<md5 _hashlib.HASH object @ 0x0000021F19887770>,eat sushi,urgent,2024-10-10T07:31:58.310Z,false,false
+<md5 _hashlib.HASH object @ 0x0000021F19887850>,drink water,unimportant,2024-10-10T07:31:58.310Z,false,false
+<md5 _hashlib.HASH object @ 0x0000021F198878F0>,drink milk,unimportant,2024-10-10T07:31:58.310Z,true,true
+<md5 _hashlib.HASH object @ 0x0000021F19887990>,drink wine,urgent,2024-10-10T07:31:58.310Z,true,true
+<md5 _hashlib.HASH object @ 0x0000021F19887A30>,bla bla bla,important,2024-10-10T07:31:58.310Z,true,true
