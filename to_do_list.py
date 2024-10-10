@@ -1,6 +1,4 @@
 import hashlib
-
-from bson import ObjectId
 from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
@@ -24,7 +22,6 @@ class Task(BaseModel):
     remind: Optional[bool] = None
 
 
-
 def get_id(x):
     return hashlib.md5(x.encode('utf-8'))
 
@@ -43,13 +40,28 @@ async def create_task(task: Task):
     return {"massage": "received task successfully"}
 
 
-# TODO
-@app.get("/tasks/{task_name}", response_model=dict)
-async def read_task(task_name: str):
+@app.get("/tasks/name/{task_name}", response_model=dict)
+async def read_task_by_name(task_name: str):
     task = await collection.find_one({"name": task_name})
     if task is None:
         raise HTTPException(status_code=404, detail="Item not found")
     return task
+
+
+@app.get("/tasks/priority/{task_priority}", response_model=list[dict])
+async def read_tasks_by_priority(task_priority: str):
+    task = await collection.find({"priority": task_priority}).to_list(length=None)
+    if not task:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return task
+
+
+@app.get("/tasks/finished", response_model=list[dict])
+async def read_finished_tasks():
+    tasks_list = await collection.find({"finished": True}).to_list(length=None)
+    if not tasks_list:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return tasks_list
 
 
 @app.put("/tasks/{task_name}", response_model=str)
