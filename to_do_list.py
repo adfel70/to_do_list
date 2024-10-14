@@ -121,3 +121,46 @@ async def delete_task_by_name(task_name: str):
 
 if __name__ == "__main__":
     uvicorn.run(app, host = "127.0.0.1", port = 8000)
+
+
+
+
+
+from pydantic import BaseModel, validator
+from datetime import datetime
+from typing import Optional
+from enum import Enum
+
+# Define an Enum for priority to restrict it to specific values
+class Priority(str, Enum):
+    URGENT = "urgent"
+    IMPORTANT = "important"
+    UNIMPORTANT = "unimportant"
+
+class Task(BaseModel):
+    name: str
+    priority: Optional[Priority] = None  # urgent, important, unimportant
+    expiration_date: Optional[datetime] = None
+    finished: Optional[bool] = None
+    remind: Optional[bool] = None
+
+    # Priority must be one of the allowed values
+    @validator('priority', always=True)
+    def check_priority(cls, v):
+        if v not in Priority.__members__.values():
+            raise ValueError('Priority must be one of: urgent, important, or unimportant.')
+        return v
+    
+    # Expiration date must not be in the past
+    @validator('expiration_date', always=True)
+    def check_expiration_date(cls, v):
+        if v and v < datetime.now():
+            raise ValueError("Expiration date cannot be in the past.")
+        return v
+
+    # If remind is True, expiration_date should be set
+    @validator('remind', always=True)
+    def check_remind_and_expiration(cls, v, values):
+        if v and not values.get('expiration_date'):
+            raise ValueError("If 'remind' is set to True, 'expiration_date' must be provided.")
+        return v
