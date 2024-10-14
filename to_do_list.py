@@ -15,7 +15,7 @@ collection = db['list_1']
 
 class Task(BaseModel):
     # the id will be created separately
-    name: str
+    name: Optional[str]
     priority: Optional[str] = None  # urgent, important or unimportant
     expiration_date: Optional[datetime] = None
     finished: Optional[bool] = None
@@ -105,7 +105,7 @@ async def update_tasks_by_priority(task_priority: str, updated_task: Task):
     task_data = {k: v for k, v in updated_task.dict().items() if v is not None}
     if not task_data:
         raise HTTPException(status_code = 400, detail = "No update data provided")
-    result = await collection.update_many({"priority": task_priority},{"$set": task_data})
+    result = await collection.update_many({"priority": task_priority}, {"$set": task_data})
     if result.matched_count == 0:
         raise HTTPException(status_code = 404, detail = "No tasks with the given priority found")
     return f"Updated {result.modified_count} task(s) with priority {task_priority}"
