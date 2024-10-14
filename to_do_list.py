@@ -1,8 +1,9 @@
 import hashlib
+from enum import Enum
 from fastapi import FastAPI, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from datetime import datetime
 from typing import Optional
 
@@ -13,6 +14,12 @@ db = client['to_do_list']
 collection = db['list_1']
 
 
+class Priority(Enum):
+    URGENT = "urgent"
+    IMPORTANT = "important"
+    UNIMPORTANT = "unimportant"
+
+
 class Task(BaseModel):
     # the id will be created separately
     name: Optional[str]
@@ -20,6 +27,27 @@ class Task(BaseModel):
     expiration_date: Optional[datetime] = None
     finished: Optional[bool] = None
     remind: Optional[bool] = None
+
+    # Priority must be one of the allowed values
+    @validator('priority')
+    def check_priority(self, v):
+        if v not in Priority.__members__.values():
+            raise ValueError('Priority must be one of: urgent, important, or unimportant.')
+        return v
+
+    # Expiration date must not be in the past
+    @validator('expiration_date')
+    def check_expiration_date(self, v):
+        if v and v < datetime.now():
+            raise ValueError("Expiration date cannot be in the past.")
+        return v
+
+    # If remind is True, expiration_date should be set
+    @validator('remind')
+    def check_remind_and_expiration(self, v, values):
+        if v and not values.get('expiration_date'):
+            raise ValueError("If 'remind' is set to True, 'expiration_date' must be provided.")
+        return v
 
 
 def get_id(x):
@@ -81,13 +109,13 @@ async def read_by_expiration_range(start_date: datetime = Query(..., description
         raise HTTPException(status_code = 404, detail = "Item not found")
     return tasks_list
 
-@app.post("/tasks/get_by_name", response_model=dict)
+
+@app.post("/tasks/get_by_name", response_model = dict)
 async def post_read_task_by_name(task_name: str):
     task = await collection.find_one({"name": task_name})
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code = 404, detail = "Task not found")
     return task
-
 
 
 @app.put("/tasks/update_by_name", response_model = str)
@@ -121,46 +149,3 @@ async def delete_task_by_name(task_name: str):
 
 if __name__ == "__main__":
     uvicorn.run(app, host = "127.0.0.1", port = 8000)
-
-
-
-
-
-from pydantic import BaseModel, validator
-from datetime import datetime
-from typing import Optional
-from enum import Enum
-
-# Define an Enum for priority to restrict it to specific values
-class Priority(str, Enum):
-    URGENT = "urgent"
-    IMPORTANT = "important"
-    UNIMPORTANT = "unimportant"
-
-class Task(BaseModel):
-    name: str
-    priority: Optional[Priority] = None  # urgent, important, unimportant
-    expiration_date: Optional[datetime] = None
-    finished: Optional[bool] = None
-    remind: Optional[bool] = None
-
-    # Priority must be one of the allowed values
-    @validator('priority', always=True)
-    def check_priority(cls, v):
-        if v not in Priority.__members__.values():
-            raise ValueError('Priority must be one of: urgent, important, or unimportant.')
-        return v
-    
-    # Expiration date must not be in the past
-    @validator('expiration_date', always=True)
-    def check_expiration_date(cls, v):
-        if v and v < datetime.now():
-            raise ValueError("Expiration date cannot be in the past.")
-        return v
-
-    # If remind is True, expiration_date should be set
-    @validator('remind', always=True)
-    def check_remind_and_expiration(cls, v, values):
-        if v and not values.get('expiration_date'):
-            raise ValueError("If 'remind' is set to True, 'expiration_date' must be provided.")
-        return v
