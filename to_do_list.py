@@ -81,6 +81,14 @@ async def read_by_expiration_range(start_date: datetime = Query(..., description
         raise HTTPException(status_code = 404, detail = "Item not found")
     return tasks_list
 
+@app.post("/tasks/get_by_name", response_model=dict)
+async def post_read_task_by_name(task_name: str):
+    task = await collection.find_one({"name": task_name})
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
 
 @app.put("/tasks/update_by_name", response_model = str)
 async def update_task(task_name: str, updated_task: Task):
