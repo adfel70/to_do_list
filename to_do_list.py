@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from enum import Enum
 from fastapi import (FastAPI, HTTPException, Query)
@@ -6,6 +7,8 @@ import uvicorn
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional
+import aio_pika
+from aio_pika import IncomingMessage
 
 app = FastAPI()
 
@@ -18,6 +21,7 @@ class Priority(Enum):
     URGENT = "urgent"
     IMPORTANT = "important"
     UNIMPORTANT = "unimportant"
+
 
 
 class Task(BaseModel):
@@ -53,23 +57,46 @@ class Task(BaseModel):
         return v
 
 
-def get_id(x):
-    return hashlib.md5(x.encode('utf-8'))
+async def rabbit_sender(message: str, routing_key: str):
+        rabbit_connection = await aio_pika.connect_robust("amqp://user:password@localhost/")
+        async with rabbit_connection:
+            channel = await rabbit_connection.channel()
+            await channel.default_exchange.publish(aio_pika.Message(body=message.encode()), routing_key=routing_key)
 
+
+async def rabbit_receiver():
+    rabbit_connection = await aio_pika.connect_robust("amqp://user:password@localhost/")
+    async with rabbit_connection:
+        # Create a channel
+        channel = await rabbit_connection.channel()
+
+        # Declare a queue with a name (e.g., "task_queue")
+        queue = await channel.declare_queue("task_queue", durable=True)
+
+        # Use the iterator to consume messages from the queue
+        async with queue.iterator() as q_iter:
+            async for message in q_iter:  # type: IncomingMessage
+                try:
+                    # Acknowledge message processing
+                    print(f"Received message: {message.body.decode()}")
+                    # You can add your message processing logic here
+                except Exception as e:
+                    print(f"Error processing message: {e}")
+                finally:
+                    # Manually acknowledge message processing completion
+                    await message.ack()
+
+
+loop = asyncio.get_event_loop()
+loop.create_task(rabbit_receiver())
 
 @app.post("/tasks/")
 async def create_task(task: Task):
-    new_task = {
-        "_id": str(get_id(task.name)),
-        "name": task.name,
-        "priority": task.priority,
-        "expiration_date": task.expiration_date,
-        "remind": task.remind,
-        "finished": task.finished
-    }
+    new_task = task.model_dump()
+    new_task['id'] = str(get_id(task.name))
     await collection.insert_one(new_task)
+    await rabbit_sender(f"Created new task: {task.name}", "task_queue")
     return {"massage": "received task successfully"}
-
 
 @app.get("/tasks/name/{task_name}", response_model = dict)
 async def read_task_by_name(task_name: str):
@@ -149,6 +176,9 @@ async def delete_task_by_name(task_name: str):
         raise HTTPException(status_code = 404, detail = "Item not found")
     return f"Item deleted successfully"
 
+
+def get_id(x):
+    return hashlib.md5(x.encode('utf-8'))
 
 if __name__ == "__main__":
     uvicorn.run(app, host = "127.0.0.1", port = 8000)
