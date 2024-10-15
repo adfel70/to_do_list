@@ -1,9 +1,9 @@
 import hashlib
 from enum import Enum
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import (FastAPI, HTTPException, Query)
 from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional
 
@@ -29,22 +29,25 @@ class Task(BaseModel):
     remind: Optional[bool] = None
 
     # Priority must be one of the allowed values
-    @validator('priority')
-    def check_priority(self, v):
+    @classmethod
+    @field_validator('priority')
+    def check_priority(cls, v):
         if v not in Priority.__members__.values():
             raise ValueError('Priority must be one of: urgent, important, or unimportant.')
         return v
 
     # Expiration date must not be in the past
-    @validator('expiration_date')
-    def check_expiration_date(self, v):
+    @classmethod
+    @field_validator('expiration_date')
+    def check_expiration_date(cls, v):
         if v and v < datetime.now():
             raise ValueError("Expiration date cannot be in the past.")
         return v
 
     # If remind is True, expiration_date should be set
-    @validator('remind')
-    def check_remind_and_expiration(self, v, values):
+    @classmethod
+    @field_validator('remind')
+    def check_remind_and_expiration(cls, v, values):
         if v and not values.get('expiration_date'):
             raise ValueError("If 'remind' is set to True, 'expiration_date' must be provided.")
         return v
