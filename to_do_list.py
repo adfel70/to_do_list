@@ -58,14 +58,14 @@ class Task(BaseModel):
 
 
 async def rabbit_sender(message: str, routing_key: str):
-        rabbit_connection = await aio_pika.connect_robust("amqp://user:password@localhost/")
+        rabbit_connection = await aio_pika.connect_robust("amqp://localhost/")
         async with rabbit_connection:
             channel = await rabbit_connection.channel()
             await channel.default_exchange.publish(aio_pika.Message(body=message.encode()), routing_key=routing_key)
 
 
 async def rabbit_receiver():
-    rabbit_connection = await aio_pika.connect_robust("amqp://user:password@localhost/")
+    rabbit_connection = await aio_pika.connect_robust("amqp://localhost/")
     async with rabbit_connection:
         # Create a channel
         channel = await rabbit_connection.channel()
@@ -176,9 +176,8 @@ async def delete_task_by_name(task_name: str):
         raise HTTPException(status_code = 404, detail = "Item not found")
     return f"Item deleted successfully"
 
-
 def get_id(x):
-    return hashlib.md5(x.encode('utf-8'))
+    return hashlib.md5(x.encode('utf-8')).hexdigest()
 
 if __name__ == "__main__":
     uvicorn.run(app, host = "127.0.0.1", port = 8000)
